@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>現在地取得</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Hiragino Sans', 'Yu Gothic', sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .card {
+      background: #16213e;
+      border-radius: 16px;
+      border: 1px solid #0f3460;
+      padding: 28px 24px;
+      width: 100%;
+      max-width: 420px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      color: #e94560;
+      margin-bottom: 6px;
+      text-align: center;
+    }
+
+    .subtitle {
+      font-size: 12px;
+      color: #888;
+      text-align: center;
+      margin-bottom: 24px;
+    }
+
+    /* GPS取得ボタン */
+    #gps-btn {
+      width: 100%;
+      padding: 18px;
+      background: #e94560;
+      color: #fff;
+      border: none;
+      border-radius: 12px;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      margin-bottom: 16px;
+      letter-spacing: 0.05em;
+    }
+    #gps-btn:hover { background: #c73550; }
+    #gps-btn:disabled { background: #555; cursor: not-allowed; }
+
+    /* ステータス */
+    #status {
+      text-align: center;
+      font-size: 13px;
+      color: #888;
+      margin-bottom: 20px;
+      min-height: 20px;
+    }
+
+    /* 結果エリア */
+    .result-area {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .coord-box {
+      background: #0d1b35;
+      border-radius: 10px;
+      padding: 14px 16px;
+      border: 1px solid #0f3460;
+    }
+    .coord-label {
+      font-size: 11px;
+      color: #a8c8f8;
+      margin-bottom: 6px;
+      letter-spacing: 0.08em;
+    }
+    .coord-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .coord-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: #eee;
+      font-family: monospace;
+      flex: 1;
+    }
+    .copy-btn {
+      padding: 6px 14px;
+      background: #0f3460;
+      color: #a8c8f8;
+      border: 1px solid #1a4a8a;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 12px;
+      white-space: nowrap;
+    }
+    .copy-btn:hover { background: #1a4a8a; }
+    .copy-btn.copied { background: #1a4a2a; color: #4caf50; border-color: #4caf50; }
+
+    /* 精度 */
+    .accuracy {
+      font-size: 11px;
+      color: #888;
+      margin-top: 4px;
+    }
+
+    /* 両方コピーボタン */
+    #copy-both-btn {
+      width: 100%;
+      padding: 14px;
+      background: #0f3460;
+      color: #a8c8f8;
+      border: 1px solid #1a4a8a;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    #copy-both-btn:hover { background: #1a4a8a; }
+
+    /* Formsリンクボタン */
+    #forms-btn {
+      width: 100%;
+      padding: 14px;
+      background: #1a4a2a;
+      color: #4caf50;
+      border: 1px solid #4caf50;
+      border-radius: 10px;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      text-align: center;
+      display: block;
+    }
+    #forms-btn:hover { background: #1e5a32; }
+
+    /* 注意書き */
+    .note {
+      font-size: 11px;
+      color: #666;
+      text-align: center;
+      margin-top: 16px;
+      line-height: 1.7;
+    }
+
+    /* 再取得ボタン */
+    #retry-btn {
+      width: 100%;
+      padding: 10px;
+      background: transparent;
+      color: #888;
+      border: 1px solid #333;
+      border-radius: 8px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #retry-btn:hover { background: #1a2a4a; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h1>📍 現在地を取得する</h1>
+  <p class="subtitle">フォーム入力用の緯度・経度を取得します</p>
+
+  <button id="gps-btn" onclick="getLocation()">現在地を取得する</button>
+  <div id="status">ボタンを押して現在地を取得してください</div>
+
+  <div class="result-area" id="result-area">
+
+    <div class="coord-box">
+      <div class="coord-label">緯度（フォームの「緯度」欄に入力）</div>
+      <div class="coord-row">
+        <div class="coord-value" id="lat-value">--</div>
+        <button class="copy-btn" id="copy-lat" onclick="copyCoord('lat')">コピー</button>
+      </div>
+    </div>
+
+    <div class="coord-box">
+      <div class="coord-label">経度（フォームの「経度」欄に入力）</div>
+      <div class="coord-row">
+        <div class="coord-value" id="lng-value">--</div>
+        <button class="copy-btn" id="copy-lng" onclick="copyCoord('lng')">コピー</button>
+      </div>
+      <div class="accuracy" id="accuracy"></div>
+    </div>
+
+    <button id="copy-both-btn" onclick="copyBoth()">📋 緯度・経度をまとめてコピー</button>
+
+    <a id="forms-btn" href="#" target="_blank">📝 フォームを開く →</a>
+
+    <button id="retry-btn" onclick="getLocation()">🔄 再取得する</button>
+
+  </div>
+
+  <p class="note">
+    ※位置情報の使用を許可してください<br>
+    ※屋外・窓際で取得すると精度が上がります
+  </p>
+</div>
+
+<script>
+/* =====================================================
+   設定エリア（ここだけ編集すればOK）
+   ===================================================== */
+const FORMS_URL = 'ここにFormsのURLを貼り付けてください';
+/* ===================================================== */
+
+let currentLat = null;
+let currentLng = null;
+
+// Formsリンクを設定
+document.getElementById('forms-btn').href = FORMS_URL;
+
+function getLocation() {
+  const btn = document.getElementById('gps-btn');
+  const status = document.getElementById('status');
+
+  if (!navigator.geolocation) {
+    status.style.color = '#e74c3c';
+    status.textContent = '⚠ このブラウザは位置情報に対応していません';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = '取得中...';
+  status.style.color = '#888';
+  status.textContent = '位置情報を取得しています...';
+
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      currentLat = position.coords.latitude.toFixed(6);
+      currentLng = position.coords.longitude.toFixed(6);
+      const accuracy = Math.round(position.coords.accuracy);
+
+      document.getElementById('lat-value').textContent = currentLat;
+      document.getElementById('lng-value').textContent = currentLng;
+      document.getElementById('accuracy').textContent = `精度：約 ${accuracy} m`;
+      document.getElementById('result-area').style.display = 'flex';
+
+      status.style.color = '#4caf50';
+      status.textContent = '✓ 現在地を取得しました';
+      btn.textContent = '現在地を取得する';
+      btn.disabled = false;
+    },
+    (error) => {
+      btn.disabled = false;
+      btn.textContent = '現在地を取得する';
+      status.style.color = '#e74c3c';
+      const msgs = {
+        1: '位置情報の使用が拒否されました。ブラウザの設定を確認してください',
+        2: '位置情報を取得できませんでした。再度お試しください',
+        3: '取得がタイムアウトしました。再度お試しください',
+      };
+      status.textContent = '⚠ ' + (msgs[error.code] || 'エラーが発生しました');
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,
+      maximumAge: 0
+    }
+  );
+}
+
+function copyCoord(type) {
+  const value = type === 'lat' ? currentLat : currentLng;
+  const btnId = type === 'lat' ? 'copy-lat' : 'copy-lng';
+  if (!value) return;
+
+  navigator.clipboard.writeText(value).then(() => {
+    const btn = document.getElementById(btnId);
+    btn.textContent = '✓ コピー済';
+    btn.classList.add('copied');
+    setTimeout(() => {
+      btn.textContent = 'コピー';
+      btn.classList.remove('copied');
+    }, 2000);
+  });
+}
+
+function copyBoth() {
+  if (!currentLat || !currentLng) return;
+  const text = `緯度：${currentLat}\n経度：${currentLng}`;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = document.getElementById('copy-both-btn');
+    btn.textContent = '✓ コピーしました';
+    setTimeout(() => btn.textContent = '📋 緯度・経度をまとめてコピー', 2000);
+  });
+}
+</script>
+</body>
+</html>
